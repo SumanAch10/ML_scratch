@@ -1,0 +1,61 @@
+# =========================
+# 🐍 Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.env/
+.venv/
+
+# =========================
+# 📓 Jupyter Notebook
+# =========================
+.ipynb_checkpoints/
+
+# =========================
+# 🧠 ML / Data Files
+# =========================
+data/
+*.csv
+*.tsv
+*.xlsx
+*.json
+
+# Large model files
+*.pkl
+*.joblib
+*.h5
+*.pt
+*.pth
+
+# =========================
+# 🧾 Logs & temp files
+# =========================
+*.log
+*.tmp
+
+# =========================
+# 🖥️ OS / Editor files
+# =========================
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# =========================
+# 🔐 Secrets
+# =========================
+.env
+.env.*
+
+# =========================
+# 🚫 Build / cache
+# =========================
+dist/
+build/
+*.egg-info/
