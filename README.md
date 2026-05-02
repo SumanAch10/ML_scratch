@@ -1,85 +1,166 @@
-Linear Regression From Scratch
-A from-scratch implementation of linear regression using batch gradient descent, benchmarked against scikit-learn's LinearRegression on the California Housing dataset.
-The goal of this project was not to build a production model — it was to build a deeper understanding of what actually happens inside .fit() and .predict() by implementing both manually and validating the implementation against a trusted reference.
-What's Inside
-script/linear_regression.py
-A custom LinearRegression class with:
+# ML From Scratch
 
-__init__(learning_rate, n_iters) — stores hyperparameters, initializes w and b as None (lazy initialization)
-fit(X, y) — runs batch gradient descent:
+Implementations of core machine learning algorithms from scratch using NumPy, validated against scikit-learn. The goal is not to build production models — it is to understand what happens inside `.fit()` and `.predict()` by implementing both manually and verifying against a trusted reference.
 
-Initializes w as a zero vector of length n_features, b as 0
-At each iteration: predicts, computes MSE loss, computes gradients, updates parameters
-Records the loss at every iteration in self.loss_history
+---
 
+## Algorithms Implemented
 
-predict(X) — applies the learned parameters: y_pred = X · w + b
+### 1. Linear Regression — California Housing Dataset
 
-Implementation is fully vectorized — no Python loops over samples. The gradient computation uses a single np.dot call that implicitly sums across samples.
-script/data_loader.py
-Loads the California Housing dataset.
-clean_data.ipynb
-End-to-end training notebook:
+**File:** `linear_regression_scratch/script/linear_regression.py`
 
-Loads the housing data
-Engineers a rooms_per_household feature
-Separates target (median_house_value) from features
-Splits data with train_test_split (80/20, random_state=42)
-Builds a preprocessing pipeline with ColumnTransformer:
+Custom `LinearRegression` class trained with **batch gradient descent** on the [California Housing dataset](https://scikit-learn.org/stable/datasets/real_world.html#california-housing-dataset) (20,640 samples, 9 features).
 
-Numeric columns: SimpleImputer(strategy="median") → StandardScaler()
-Categorical columns (ocean_proximity): OneHotEncoder
+**Gradient update rule:**
+```
+w := w − α · (1/m) · Xᵀ · (ŷ − y)
+b := b − α · (1/m) · Σ(ŷ − y)
+```
 
+**Results (80/20 split, learning_rate=0.01, n_iters=1000):**
 
-Transforms train and test data
-Trains the custom model and generates predictions
-Trains scikit-learn's LinearRegression on the same transformed data for comparison
+| Metric | From Scratch | scikit-learn | Baseline (mean) |
+|--------|-------------|--------------|-----------------|
+| MAE    | $50,899.53  | $50,670.49   | $90,606.85      |
+| MSE    | 4,982,028,932 | 4,908,290,571 | 13,106,960,720 |
+| R²     | 0.6198      | 0.6254       | -0.0002         |
 
-Key Concepts Implemented
-Gradient Descent
-The .fit() method performs batch gradient descent with the standard update rule:
-w := w − α · dJ/dw
-b := b − α · dJ/db
-where α is the learning rate and the gradients of the MSE loss are:
-dJ/dw = (1/m) · X.T · (ŷ − y)
-dJ/db = (1/m) · Σ (ŷ − y)
-The 1/(2m) constant in the loss was chosen so that the factor of 2 from the power rule cancels cleanly when taking the derivative.
-Vectorization
-The entire gradient computation avoids per-sample loops. For a dataset of shape (m, n):
+The scratch model is within ~1–5% of sklearn per sample. The small gap is expected: gradient descent converges iteratively while sklearn uses the exact closed-form normal equation.
 
-y_pred - y → shape (m,)
-np.dot(y_pred - y, X) → shape (n,) — the per-feature gradient, summed across all samples in a single operation
+---
 
-This is orders of magnitude faster than a Python loop and mirrors how production ML libraries operate under the hood.
-Preprocessing Pipeline
-All preprocessing is done inside a single sklearn Pipeline so that:
+### 2. Logistic Regression — Customer Churn Dataset
 
-Imputation statistics (median) are fit only on training data, preventing data leakage
-The scaler's mean/std are computed from training data only
-Test data is transformed using the statistics learned from training
-The full chain can be re-applied to any new data at prediction time with a single call
+**File:** `logistic_regression_scratch/script/logisticregression.py`
 
-Bugs Encountered (and Fixed)
-Part of what this project taught me was how to debug a model that silently produces garbage.
+Custom `LogisticRegression` class trained with **batch gradient descent** and **binary cross-entropy loss** on a customer churn dataset (7,043 samples, 19 features).
 
-NaN predictions — the custom model returned arrays containing NaN. The model itself happily multiplied NaN values through without complaining.
-Differential testing — fed the same transformed data to scikit-learn's LinearRegression, which raised a clear ValueError: Input X contains NaN. This confirmed the bug was in the data pipeline, not in the model.
-Root cause — the total_bedrooms column in the California Housing dataset has 207 missing values. The original pipeline had StandardScaler with no imputation step, so NaN values passed straight through.
-Fix — wrapped StandardScaler inside a sub-pipeline with SimpleImputer(strategy="median") placed before it.
+**Sigmoid + prediction:**
+```
+ŷ = σ(Xw + b) = 1 / (1 + e^(−z))
+class = 1 if ŷ > 0.5 else 0
+```
 
-Validation
-The custom implementation was validated by comparing predictions against scikit-learn's LinearRegression on the same transformed test data. Predictions from the two models agree within roughly 1–5% per sample — the small gap is expected because gradient descent converges toward the optimum iteratively, while scikit-learn uses the exact closed-form solution (the normal equation).
-Running It
-pythonfrom script.linear_regression import LinearRegression
+**Loss function (binary cross-entropy):**
+```
+J = −(1/m) · Σ [ y·log(ŷ) + (1−y)·log(1−ŷ) ]
+```
+
+**Results:** Predictions match scikit-learn's `LogisticRegression` exactly on test data.
+
+---
+
+## Project Structure
+
+```
+ML_scratch/
+├── linear_regression_scratch/
+│   ├── script/
+│   │   ├── linear_regression.py    # Custom LinearRegression class
+│   │   └── data_loader.py          # Loads California Housing CSV
+│   └── notebooks/
+│       └── model_eval.ipynb        # Training, preprocessing, comparison
+│
+└── logistic_regression_scratch/
+    ├── script/
+    │   ├── logisticregression.py   # Custom LogisticRegression class
+    │   └── load_data.py            # Loads customer churn CSV
+    └── notebooks/
+        └── model_eval_logistic.ipynb  # Training, preprocessing, comparison
+```
+
+---
+
+## Key Concepts
+
+### Vectorized Gradient Computation
+
+No Python loops over samples. All gradients are computed in a single matrix operation:
+
+```python
+# shape: (m,) → (n,) — sums across all samples at once
+dw = (1/m) * np.dot(X.T, (y_pred - y))
+db = (1/m) * np.sum(y_pred - y)
+```
+
+### Preprocessing Pipeline (No Data Leakage)
+
+All imputation and scaling statistics are fit **only on training data** and applied to test data:
+
+```python
+numeric_pipeline = Pipeline([
+    ("imputer", SimpleImputer(strategy="median")),
+    ("scaler", StandardScaler())
+])
+categorical_pipeline = Pipeline([
+    ("encoder", OneHotEncoder())
+])
+```
+
+### Numerical Stability (Logistic Regression)
+
+Probabilities are clipped to `[1e-15, 1-1e-15]` before computing log to avoid `log(0)`:
+
+```python
+y_pred = np.clip(y_pred, 1e-15, 1 - 1e-15)
+```
+
+---
+
+## Debugging Story
+
+The linear regression model initially returned arrays full of `NaN`. Differential testing — feeding the same data to sklearn's `LinearRegression` — raised a clear `ValueError: Input X contains NaN`, which confirmed the bug was in the pipeline, not the model.
+
+**Root cause:** The California Housing dataset has 207 missing values in `total_bedrooms`. The pipeline was passing raw NaN values directly into `StandardScaler`.
+
+**Fix:** Added `SimpleImputer(strategy="median")` before `StandardScaler` in the numeric sub-pipeline.
+
+---
+
+## Usage
+
+```python
+from script.linear_regression import LinearRegression
 
 model = LinearRegression(learning_rate=0.01, n_iters=1000)
-model.fit(X_train_transformed, y_train)
-y_pred = model.predict(X_test_transformed)
-Loss history is available as model.loss_history for plotting convergence curves.
-Tech Stack
+model.fit(X_train, y_train)
+y_pred = model.predict(X_test)
 
-Python 3.13
-NumPy (all math)
-pandas (data loading, column selection)
-scikit-learn (pipeline, preprocessing, reference model)
-matplotlib (loss curve plotting)
+# Plot convergence
+import matplotlib.pyplot as plt
+plt.plot(model.loss_history)
+plt.xlabel("Iteration")
+plt.ylabel("MSE Loss")
+plt.title("Gradient Descent Convergence")
+plt.show()
+```
+
+```python
+from script.logisticregression import LogisticRegression
+
+model = LogisticRegression(learning_rate=0.01, n_iters=1000)
+model.fit(X_train, y_train)
+y_pred = model.predict(X_test)
+proba = model.predict_proba(X_test)
+```
+
+---
+
+## Tech Stack
+
+| Library | Purpose |
+|---------|---------|
+| Python 3.13 | Language |
+| NumPy | All math (vectorized) |
+| pandas | Data loading and manipulation |
+| scikit-learn | Preprocessing pipelines, reference models, metrics |
+| matplotlib | Loss curve visualization |
+
+---
+
+## What's Next
+
+- Decision Trees from scratch
+- K-Nearest Neighbors
+- Neural network (single hidden layer) with backpropagation
